@@ -3,7 +3,7 @@ from flask import Flask, request, render_template_string, jsonify, session, redi
 
 app = Flask(__name__)
 app.secret_key = "vantage_admin_ultra_2026"
-MASTER_ADMIN_PW = "vantage_admin" # ONLY YOU USE THIS TO BE ADMIN
+MASTER_ADMIN_PW = "SkibidiSigma" # ONLY YOU USE THIS TO BE ADMIN
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
