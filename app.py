@@ -2,8 +2,8 @@ import requests, time, os
 from flask import Flask, request, render_template_string, jsonify, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "vantage_v11_secret") # Secure key
-ADMIN_KEY = "vantage_admin" # CHANGE THIS PASSWORD
+app.secret_key = os.environ.get("SECRET_KEY", "vantage_v11_secret")
+ADMIN_KEY = "vantage_admin"
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
@@ -51,6 +51,7 @@ DASH_HTML = """
         </div>
     </div>
 <script>
+    let lastPlayerCount = 0;
     function tab(name, el) {
         document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
@@ -67,13 +68,18 @@ DASH_HTML = """
                     <button class="btn" style="padding:10px; font-size:12px;" onclick="window.location='roblox-player:1+launchmode:play+gameinstanceid:${id}+placeid:${s.place_id}'">JOIN</button></div>`;
             }
             document.getElementById('server_grid').innerHTML = sHtml || "No signals detected...";
-            let wHtml = ""; let opts = "";
-            data.whitelist.forEach(u => {
-                opts += `<option value="${u.name}">${u.name}</option>`;
-                wHtml += `<div class="card" style="display:flex; align-items:center; gap:10px; padding:10px;"><img src="${u.img}" style="width:40px; border-radius:50%;"><b>${u.name}</b></div>`;
-            });
-            document.getElementById('w_list').innerHTML = wHtml;
-            document.getElementById('target_sel').innerHTML = opts || "<option>NO TARGETS</option>";
+            
+            // FIXED: Only update dropdown if the number of whitelisted users changed
+            if (data.whitelist.length !== lastPlayerCount) {
+                let wHtml = ""; let opts = "";
+                data.whitelist.forEach(u => {
+                    opts += `<option value="${u.name}">${u.name}</option>`;
+                    wHtml += `<div class="card" style="display:flex; align-items:center; gap:10px; padding:10px;"><img src="${u.img}" style="width:40px; border-radius:50%;"><b>${u.name}</b></div>`;
+                });
+                document.getElementById('w_list').innerHTML = wHtml;
+                document.getElementById('target_sel').innerHTML = opts || "<option>NO TARGETS</option>";
+                lastPlayerCount = data.whitelist.length;
+            }
         });
     }
     function addWhite() {
@@ -98,7 +104,7 @@ def login():
 
 @app.route('/')
 def index():
-    if not session.get('auth'): return redirect(url_for('login'))
+    if not session.get('auth'): return redirect(url_for('index'))
     return render_template_string(DASH_HTML)
 
 @app.route('/api/data')
@@ -127,9 +133,8 @@ def run_exec():
 def roblox_sync():
     data = request.json
     jid = data.get("jobId")
-    if not jid or jid == "": jid = f"SESSION_{data.get('game_id')}" # STUDIO FIX
+    if not jid or jid == "": jid = f"SESSION_{data.get('game_id')}" 
     
-    # Update or Create
     if jid not in data_store["active_servers"]:
         t_res = requests.get(f"https://thumbnails.roblox.com/v1/places/gameicons?placeIds={data.get('game_id')}&size=150x150&format=Png", headers=HEADERS).json()
         thumb = t_res["data"][0]["imageUrl"] if t_res.get("data") else ""
@@ -140,7 +145,6 @@ def roblox_sync():
         "players": data.get('players'), "uptime": int(time.time() - data_store["start_time"]), "last_ping": time.time()
     })
 
-    # CLEANUP DEAD SERVERS
     now = time.time()
     data_store["active_servers"] = {k: v for k, v in data_store["active_servers"].items() if now - v.get("last_ping", 0) < 10}
 
