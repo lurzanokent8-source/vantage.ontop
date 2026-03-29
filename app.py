@@ -2,15 +2,14 @@ import requests, time, os, uuid, random, string
 from flask import Flask, request, render_template_string, jsonify, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "vantage_admin_ultra_2026"
-MASTER_ADMIN_PW = "SkibidiSigma" # ONLY YOU USE THIS TO BE ADMIN
+app.secret_key = "vantage_render_ultra_2026"
+MASTER_ADMIN_PW = "SkibidiSigma" 
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# DATA STORAGE
 global_servers = {} 
 user_sessions = {}
-valid_keys = {} # Store {key: "active"}
+valid_keys = {}
 
 def generate_key():
     return "VANTAGE-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -25,7 +24,13 @@ body { background: var(--bg); background-size: cover; background-position: cente
 .viewport { flex: 1; padding: 25px; overflow-y: auto; }
 .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 15px; backdrop-filter: blur(15px); margin-bottom: 15px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: auto; }
-.btn { background: var(--gold); color: #000; border: none; padding: 14px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; text-transform: uppercase; font-size: 11px; margin-top: 10px; }
+/* FIXED THUMBNAILS */
+.server-thumb { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; border: 1px solid #222; margin-bottom: 10px; display: block; }
+.server-info { font-size: 11px; margin-bottom: 8px; line-height: 1.4; }
+.server-info b { color: var(--gold); }
+.owner-tag { color: #555; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+
+.btn { background: var(--gold); color: #000; border: none; padding: 14px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; text-transform: uppercase; font-size: 11px; margin-top: 5px; }
 .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3); }
 input, textarea { background: rgba(0,0,0,0.8); border: 1px solid var(--border); padding: 15px; color: #fff; width: 100%; border-radius: 12px; outline: none; margin-bottom: 10px; }
 textarea { color: #0f0; font-family: 'Consolas', monospace; height: 350px; resize: none; border-left: 5px solid var(--gold); }
@@ -46,7 +51,6 @@ DASH_HTML = """
                 <input type="password" name="pw" placeholder="ENTER ACCESS KEY">
                 <button class="btn">ENTER SYSTEM</button>
             </form>
-            <p style="font-size:10px; color:#444; margin-top:10px;">Contact Admin for a Key</p>
         </div>
     </div>
     {% else %}
@@ -97,8 +101,7 @@ DASH_HTML = """
         <div id="admin" class="tab hidden">
             <div class="card" style="max-width: 500px; margin: auto;">
                 <h2 style="color:#ff4444;">Admin Control</h2>
-                <p style="font-size:11px;">Stock Key: <b style="color:var(--gold);">INFINITE</b></p>
-                <button class="btn" onclick="genKey()">GET NEW KEY</button>
+                <button class="btn" onclick="genKey()">GENERATE ACCESS KEY</button>
                 <div id="key_list" style="margin-top:15px;"></div>
             </div>
         </div>
@@ -122,8 +125,12 @@ DASH_HTML = """
                 let s = data[id];
                 sHtml += `<div class="card">
                     <img src="${s.thumb}" class="server-thumb">
-                    <b style="color:var(--gold);">${s.name}</b>
-                    <button class="btn" onclick="window.location='roblox-player:1+launchmode:play+gameinstanceid:${id}+placeid:${s.place_id}'">JOIN</button>
+                    <div class="server-info">
+                        <b>GAME:</b> ${s.name}<br>
+                        <b>OWNER:</b> <span class="owner-tag">${s.owner || 'UNKNOWN'}</span><br>
+                        <b>PLAYERS:</b> ${s.p_count || 0} Active
+                    </div>
+                    <button class="btn" onclick="window.location='roblox-player:1+launchmode:play+gameinstanceid:${id}+placeid:${s.place_id}'">JOIN SERVER</button>
                 </div>`;
             }
             document.getElementById('server_grid').innerHTML = sHtml;
@@ -176,7 +183,7 @@ def login():
         session['logged_in'] = True
         session['is_admin'] = False
         session['sid'] = str(uuid.uuid4())
-        del valid_keys[pw] # ONE TIME USE - KEY IS DELETED
+        del valid_keys[pw]
     return redirect(url_for('index'))
 
 @app.route('/logout')
@@ -244,7 +251,13 @@ def roblox_sync():
     if jid not in global_servers:
         t = requests.get(f"https://thumbnails.roblox.com/v1/places/gameicons?placeIds={data.get('game_id')}&size=150x150&format=Png", headers=HEADERS).json()
         global_servers[jid] = {"thumb": t["data"][0]["imageUrl"] if t.get("data") else "", "place_id": data.get("game_id")}
-    global_servers[jid].update({"name": data.get("name"), "last_ping": time.time()})
+    
+    global_servers[jid].update({
+        "name": data.get("name"), 
+        "owner": data.get("owner"),
+        "p_count": len(data.get("players", [])),
+        "last_ping": time.time()
+    })
     
     global_servers.update({k: v for k, v in global_servers.items() if time.time() - v.get('last_ping', 0) < 20})
 
