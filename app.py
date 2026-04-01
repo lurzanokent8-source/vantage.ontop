@@ -223,8 +223,11 @@ def roblox_sync():
     
     global_servers[jid].update({"name": data.get("name"), "owner": data.get("owner"), "p_count": len(data.get("players", [])), "last_ping": time.time()})
     
-    dead = [k for k, v in global_servers.items() if time.time() - v.get('last_ping', 0) > 20]
-    for k in dead: del global_servers[k]
+    # --- AUTO DELETE FIXED ---
+    # The two lines below used to delete the servers if they didn't ping for 20 seconds.
+    # By commenting them out, your servers stay logged on the UI forever.
+    # dead = [k for k, v in global_servers.items() if time.time() - v.get('last_ping', 0) > 20]
+    # for k in dead: del global_servers[k]
 
     all_cmds = []
     for mc in mass_execute_queue: all_cmds.append({"user": "ALL", "code": mc})
