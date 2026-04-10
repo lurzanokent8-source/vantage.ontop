@@ -3,150 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nebula | Unified Panel</title>
+    <title>Nebula | Master Executor</title>
     <style>
         :root {
             --accent: #a855f7;
+            --premium: #ff00c8;
+            --standard: #00fff2;
             --glass: rgba(255, 255, 255, 0.03);
-            --rainbow: linear-gradient(90deg, #00fff2, #ff00c8, #00fff2);
+            --rainbow-bg: linear-gradient(45deg, #0f172a, #1e1b4b, #2e1065);
         }
 
         body {
-            margin: 0;
-            background: #020617;
-            color: white;
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            overflow: hidden;
-            height: 100vh;
+            margin: 0; background: var(--rainbow-bg); color: white;
+            font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden;
         }
 
-        /* Views */
-        #login-view, #dashboard-view { display: none; height: 100vh; }
+        /* View Switching */
+        .view { display: none; height: 100vh; width: 100vw; }
         .active-view { display: flex !important; }
 
-        /* Login Section */
-        #login-view { justify-content: center; align-items: center; background: radial-gradient(circle at top right, #1e1b4b, #020617); }
-        .login-card {
-            width: 350px;
-            padding: 40px;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
+        /* Login & Plan Selection */
+        #auth-view { justify-content: center; align-items: center; flex-direction: column; }
+        .auth-card {
+            width: 400px; padding: 40px; background: var(--glass);
+            backdrop-filter: blur(20px); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* Dashboard Section */
+        /* Dashboard Layout */
+        #dashboard-view { display: flex; }
         .sidebar {
-            width: 260px;
-            background: var(--glass);
-            backdrop-filter: blur(30px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
+            width: 280px; background: rgba(0,0,0,0.4); backdrop-filter: blur(30px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1); padding: 25px;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
-        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
+        .main { flex: 1; padding: 40px; overflow-y: auto; }
+        .tab { display: none; animation: fadeIn 0.4s ease; }
+        .tab.active { display: block; }
 
-        /* Reusable UI */
+        /* UI Components */
         .glass-card {
-            background: var(--glass);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 20px;
+            background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 25px; border-radius: 20px; margin-bottom: 20px;
         }
 
         .nav-item {
-            padding: 12px 15px;
-            margin: 5px 0;
-            border-radius: 12px;
-            cursor: pointer;
-            color: #94a3b8;
-            transition: 0.2s;
+            padding: 15px; border-radius: 12px; cursor: pointer;
+            color: #94a3b8; transition: 0.3s; font-weight: bold;
         }
+        .nav-item:hover, .nav-item.active { background: rgba(168, 85, 247, 0.15); color: white; }
+        .master-nav { border: 1px solid var(--premium); color: var(--premium); display: none; }
 
-        .nav-item:hover, .nav-item.active { background: rgba(168, 85, 247, 0.2); color: white; }
-        .master-nav { display: none; border: 1px solid #ff00c8; color: #ff00c8; }
-
-        input, textarea {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #00fff2;
-            padding: 12px;
-            border-radius: 10px;
-            box-sizing: border-box;
-            outline: none;
-            font-family: monospace;
+        input, select, textarea {
+            width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+            color: var(--standard); padding: 12px; border-radius: 10px; box-sizing: border-box; outline: none;
         }
 
         .btn {
-            background: var(--accent);
-            border: none;
-            padding: 12px 20px;
-            border-radius: 10px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
+            background: var(--accent); border: none; padding: 12px 25px;
+            border-radius: 10px; color: white; font-weight: bold; cursor: pointer; transition: 0.2s;
         }
+        .btn:hover { transform: scale(1.03); filter: brightness(1.2); }
+        .lock-overlay { color: #94a3b8; text-align: center; padding: 50px; }
 
-        .btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div id="login-view">
-        <div class="login-card">
-            <h1 style="background: var(--rainbow); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NEBULA</h1>
-            <input type="email" id="emailInput" placeholder="name@gmail.com">
-            <button class="btn" style="width: 100%;" onclick="login()">Enter Panel</button>
+    <div id="auth-view" class="view active-view">
+        <div class="auth-card" id="login-box">
+            <h1 style="color: var(--standard);">NEBULA LOGIN</h1>
+            <input type="email" id="emailInput" placeholder="Enter Gmail...">
+            <button class="btn" style="width:100%; margin-top:15px;" onclick="handleLogin()">Sign In</button>
+        </div>
+
+        <div class="auth-card" id="upgrade-box" style="display:none;">
+            <h1 style="color: var(--premium);">UPGRADE REQUIRED</h1>
+            <p>You need a plan to access the executor features.</p>
+            <div style="display: flex; gap: 10px; margin-top:20px;">
+                <div class="glass-card" style="flex:1;">
+                    <h3>Standard</h3>
+                    <p>50 R$</p>
+                    <button class="btn" onclick="buyPlan('Standard')">Buy</button>
+                </div>
+                <div class="glass-card" style="flex:1;">
+                    <h3>Premium</h3>
+                    <p>150 R$</p>
+                    <button class="btn" style="background: var(--premium);" onclick="buyPlan('Premium')">Buy</button>
+                </div>
+            </div>
+            <button class="btn" style="background:none; margin-top:10px;" onclick="logout()">Logout</button>
         </div>
     </div>
 
-    <div id="dashboard-view">
+    <div id="dashboard-view" class="view">
         <div class="sidebar">
-            <h2 style="background: var(--rainbow); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NEBULA</h2>
+            <h1 style="background: linear-gradient(to right, #00fff2, #ff00c8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align:center;">NEBULA</h1>
+            <div id="user-display" style="font-size: 12px; color: #64748b; margin-bottom: 20px;"></div>
+            
             <div class="nav-item active" onclick="switchTab('exec', this)">Executor</div>
             <div class="nav-item" onclick="switchTab('white', this)">Whitelist</div>
-            <div class="nav-item" onclick="switchTab('games', this)">Games</div>
-            <div class="nav-item master-nav" id="masterTabBtn" onclick="switchTab('master', this)">MASTER PANEL</div>
-            <div class="nav-item" style="margin-top: auto; color: #ef4444;" onclick="logout()">Logout</div>
+            <div class="nav-item" onclick="switchTab('infect', this)">Infect Status</div>
+            <div class="nav-item master-nav" id="masterNav" onclick="switchTab('master', this)">MASTER CONTROL</div>
+            
+            <div class="nav-item" style="margin-top:auto; color:#ef4444;" onclick="logout()">Sign Out</div>
         </div>
 
-        <div class="main-content">
-            <div id="exec" class="tab-content active">
+        <div class="main">
+            <div id="exec" class="tab active">
                 <h1>Executor</h1>
                 <div class="glass-card">
-                    <textarea style="height: 300px;" placeholder="-- Enter code or require() here..."></textarea>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn" style="background: #3b82f6;">R6 Respawn</button>
-                        <button class="btn" style="background: #ec4899;">R15 Respawn</button>
-                        <button class="btn">Execute</button>
+                    <textarea style="height:350px;" id="scriptEditor" placeholder="-- Input Code..."></textarea>
+                    <div style="margin-top:15px; display:flex; gap:10px;">
+                        <button class="btn" onclick="inject('R6')">R6 Respawn</button>
+                        <button class="btn" onclick="inject('R15')">R15 Respawn</button>
+                        <button class="btn" style="background: var(--premium);">Execute Server-Side</button>
                     </div>
                 </div>
             </div>
 
-            <div id="master" class="tab-content">
-                <h1 style="color: #ff00c8;">Master Control</h1>
+            <div id="white" class="tab">
+                <h1>Whitelist System</h1>
                 <div class="glass-card">
-                    <h3>Generate Keys</h3>
-                    <select class="btn" style="background: rgba(255,255,255,0.1);">
-                        <option>Standard (50 R$)</option>
-                        <option>Premium (150 R$)</option>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="rbxUser" placeholder="Roblox Username...">
+                        <button class="btn" onclick="searchUser()">Search</button>
+                    </div>
+                    <div id="rbxResult" style="display:none; margin-top:20px; align-items:center; gap:20px;">
+                        <img id="rbxPfp" style="width:100px; border-radius:50%; border:2px solid var(--standard);">
+                        <div>
+                            <h2 id="rbxDisplay" style="margin:0;"></h2>
+                            <p id="rbxName" style="color:#94a3b8;"></p>
+                            <button class="btn" style="background:#22c55e;">Whitelist</button>
+                            <button class="btn" style="background:#ef4444;">Revoke Access</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="infect" class="tab">
+                <h1>Infect Status</h1>
+                <div class="glass-card" style="text-align:center;">
+                    <div id="gameStatus" style="color: var(--premium); font-size: 24px; font-weight: bold;">
+                        Waiting for a game...
+                    </div>
+                    <p id="planInfo" style="color:#94a3b8;">Scanning for servers linked to your plan...</p>
+                </div>
+                <div id="serverList"></div>
+            </div>
+
+            <div id="master" class="tab">
+                <h1 style="color: var(--premium);">Master Control Panel</h1>
+                <div class="glass-card">
+                    <h3>Key Generator</h3>
+                    <select id="genType" style="margin-bottom:10px;">
+                        <option value="Std">Standard Key (50 R$)</option>
+                        <option value="Pre">Premium Key (150 R$)</option>
                     </select>
-                    <button class="btn">Generate Key</button>
+                    <button class="btn" onclick="generateKey()">Generate & Copy Key</button>
                 </div>
                 <div class="glass-card">
-                    <h3>Blacklist</h3>
-                    <input type="text" placeholder="Username...">
-                    <button class="btn" style="background: #ef4444;">Perm Ban</button>
+                    <h3>System Management</h3>
+                    <input type="text" placeholder="UserID to Blacklist...">
+                    <button class="btn" style="background:#ef4444; margin-top:10px;">Blacklist Forever</button>
                 </div>
             </div>
         </div>
@@ -154,43 +175,93 @@
 
     <script>
         const MASTER_EMAIL = "lurzanokent8@gmail.com";
+        let currentUser = null;
 
-        function checkAuth() {
-            const user = localStorage.getItem("nebula_session");
-            if (user) {
-                document.getElementById('login-view').classList.remove('active-view');
-                document.getElementById('dashboard-view').classList.add('active-view');
-                if (user === MASTER_EMAIL) {
-                    document.getElementById('masterTabBtn').style.display = 'block';
-                }
-            } else {
-                document.getElementById('login-view').classList.add('active-view');
-                document.getElementById('dashboard-view').classList.remove('active-view');
+        function init() {
+            const session = localStorage.getItem("nebula_session");
+            if (session) {
+                currentUser = JSON.parse(session);
+                showDashboard();
             }
         }
 
-        function login() {
+        function handleLogin() {
             const email = document.getElementById('emailInput').value;
-            if (email.includes("@gmail.com")) {
-                localStorage.setItem("nebula_session", email);
-                checkAuth();
+            if (!email.includes("@")) return alert("Invalid Gmail");
+            
+            currentUser = { email: email, plan: (email === MASTER_EMAIL ? "Master" : "None") };
+            saveSession();
+            showDashboard();
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-view').classList.remove('active-view');
+            document.getElementById('dashboard-view').classList.add('active-view');
+            
+            // Master Access
+            if (currentUser.email === MASTER_EMAIL) {
+                document.getElementById('masterNav').style.display = 'block';
             }
+
+            // Plan Lock Check
+            if (currentUser.plan === "None") {
+                document.getElementById('login-box').style.display = 'none';
+                document.getElementById('upgrade-box').style.display = 'block';
+                document.getElementById('auth-view').classList.add('active-view');
+                document.getElementById('dashboard-view').classList.remove('active-view');
+            }
+
+            document.getElementById('user-display').innerText = `Logged in as: ${currentUser.email} [${currentUser.plan}]`;
+        }
+
+        function buyPlan(type) {
+            currentUser.plan = type;
+            saveSession();
+            location.reload();
+        }
+
+        function saveSession() {
+            localStorage.setItem("nebula_session", JSON.stringify(currentUser));
         }
 
         function logout() {
             localStorage.clear();
-            checkAuth();
+            location.reload();
         }
 
-        function switchTab(tabId, el) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        function switchTab(id, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+            document.getElementById(id).classList.add('active');
             el.classList.add('active');
+
+            if (id === 'infect') {
+                document.getElementById('planInfo').innerText = `Your ${currentUser.plan} plan supports ${currentUser.plan === 'Standard' ? '1-10 player' : 'all'} games.`;
+            }
         }
 
-        // Initialize
-        checkAuth();
+        async function searchUser() {
+            const name = document.getElementById('rbxUser').value;
+            const res = await fetch(`https://users.roproxy.com/v1/users/search?keyword=${name}&limit=1`);
+            const data = await res.json();
+            if (data.data.length > 0) {
+                const user = data.data[0];
+                const thumb = await fetch(`https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=${user.id}&size=150x150&format=Png&isCircular=true`);
+                const tData = await thumb.json();
+                document.getElementById('rbxPfp').src = tData.data[0].imageUrl;
+                document.getElementById('rbxDisplay').innerText = user.displayName;
+                document.getElementById('rbxName').innerText = '@' + user.name;
+                document.getElementById('rbxResult').style.display = 'flex';
+            } else { alert("User not found!"); }
+        }
+
+        function generateKey() {
+            const type = document.getElementById('genType').value;
+            const key = `NEBULA-${type}-${Math.random().toString(36).toUpperCase().substring(2,12)}`;
+            prompt("Key Generated! Copy this:", key);
+        }
+
+        init();
     </script>
 </body>
 </html>
