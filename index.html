@@ -2,229 +2,154 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate SS | Dashboard</title>
+    <title>Ultimate SS | Cloud Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    
     <style>
-        :root {
-            --bg-dark: #080808;
-            --panel-bg: rgba(20, 20, 20, 0.8);
-            --accent: #007bff;
-            --accent-glow: rgba(0, 123, 255, 0.4);
-            --text-main: #e0e0e0;
-            --text-dim: #888;
-            --border: #222;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
-
-        /* Login Overlay */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-dark); z-index: 1000; display: flex;
-            align-items: center; justify-content: center; flex-direction: column;
-        }
-        .login-card {
-            background: var(--panel-bg); padding: 40px; border-radius: 15px;
-            border: 1px solid var(--border); text-align: center; width: 350px;
-        }
-        .google-btn {
-            background: white; color: black; padding: 12px; width: 100%;
-            border-radius: 5px; border: none; cursor: pointer; font-weight: 600;
-            margin-top: 20px; transition: 0.3s;
-        }
+        :root { --bg: #050505; --panel: #111; --accent: #00ff88; --premium: #ffbb00; --text: #eee; }
+        * { margin:0; padding:0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
         /* Sidebar */
-        .sidebar {
-            width: 260px; height: 100vh; background: #0a0a0a; position: fixed;
-            border-right: 1px solid var(--border); padding: 20px;
-        }
-        .logo { font-size: 22px; font-weight: 800; margin-bottom: 40px; color: var(--accent); }
-        .nav-item {
-            padding: 12px 15px; border-radius: 8px; color: var(--text-dim);
-            cursor: pointer; transition: 0.2s; margin-bottom: 5px; display: flex; align-items: center;
-        }
-        .nav-item i { margin-right: 12px; width: 20px; }
-        .nav-item:hover, .nav-item.active { background: #151515; color: white; }
-        .nav-item.active { border-left: 4px solid var(--accent); }
+        .sidebar { width: 280px; background: #000; border-right: 1px solid #222; padding: 25px; }
+        .nav-link { padding: 15px; cursor: pointer; color: #666; transition: 0.3s; display: flex; align-items: center; border-radius: 8px; margin-bottom: 5px; }
+        .nav-link i { margin-right: 15px; }
+        .nav-link:hover, .active { background: #111; color: #fff; }
+        .active { border-left: 4px solid var(--accent); color: var(--accent); }
 
-        /* Main Content */
-        .container { margin-left: 260px; padding: 40px; height: 100vh; overflow-y: auto; }
-        .tab-content { display: none; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Executor Elements */
-        .editor-container { background: #050505; border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
-        textarea {
-            width: 100%; height: 400px; background: transparent; border: none; outline: none;
-            color: #10b981; font-family: 'Consolas', monospace; font-size: 14px; resize: none;
-        }
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
-        .btn {
-            padding: 12px 25px; border-radius: 6px; border: none; cursor: pointer;
-            font-weight: 600; transition: 0.3s;
-        }
-        .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
-        .btn-secondary { background: #1a1a1a; color: white; border: 1px solid var(--border); }
+        /* Content */
+        .main { flex: 1; padding: 40px; overflow-y: auto; }
+        .tab { display: none; }
+        .show { display: block; animation: fade 0.3s ease; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
         /* Stats Cards */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: #111; padding: 20px; border-radius: 10px; border: 1px solid var(--border); }
-        .stat-card h3 { color: var(--text-dim); font-size: 12px; text-transform: uppercase; margin-bottom: 10px; }
-        .stat-card p { font-size: 24px; font-weight: 800; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: var(--panel); padding: 25px; border-radius: 12px; border: 1px solid #222; }
+        .card h4 { color: #555; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+        .card p { font-size: 28px; font-weight: bold; }
 
-        /* Master Panel Specifics */
-        .master-only { border: 2px solid gold !important; position: relative; }
-        .master-only::after { content: "MASTER"; position: absolute; top: -10px; right: 10px; background: gold; color: black; padding: 2px 8px; font-size: 10px; border-radius: 4px; font-weight: 800; }
+        /* UI Elements */
+        textarea { width: 100%; height: 350px; background: #000; color: var(--accent); border: 1px solid #222; padding: 15px; font-family: monospace; border-radius: 8px; resize: none; }
+        .btn { padding: 12px 24px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; margin-right: 10px; transition: 0.2s; }
+        .btn-exec { background: var(--accent); color: #000; }
+        .btn-prem { background: var(--premium); color: #000; }
+        
+        /* Whitelist Thumbnails */
+        .rbx-card { display: flex; align-items: center; background: #1a1a1a; padding: 15px; border-radius: 10px; margin-top: 20px; }
+        .rbx-thumb { width: 60px; height: 60px; border-radius: 50%; background: #333; margin-right: 15px; border: 2px solid var(--accent); }
+        
+        /* Master Panel Hide */
+        #master-panel { border: 1px solid var(--premium); display: none; }
     </style>
 </head>
 <body>
 
-    <div id="login-overlay">
-        <div class="login-card">
-            <h1 class="logo">ULTIMATE SS</h1>
-            <p style="color: var(--text-dim);">Authentication Required</p>
-            <button class="google-btn" onclick="mockLogin()">
-                <i class="fab fa-google"></i> Sign in with Google
-            </button>
-        </div>
-    </div>
-
     <div class="sidebar">
-        <div class="logo">ULTIMATE SS</div>
-        <div class="nav-item active" onclick="switchTab('exec')"><i class="fas fa-terminal"></i> Executor</div>
-        <div class="nav-item" onclick="switchTab('infect')"><i class="fas fa-virus"></i> Infected Games</div>
-        <div class="nav-item" onclick="switchTab('plans')"><i class="fas fa-crown"></i> Plans</div>
-        <div class="nav-item" onclick="switchTab('whitelist')"><i class="fas fa-user-check"></i> Whitelist</div>
-        <div id="master-nav" style="display: none; margin-top: 40px; border-top: 1px solid #222; padding-top: 20px;">
-            <div class="nav-item" style="color: gold;" onclick="switchTab('master')"><i class="fas fa-user-shield"></i> MASTER PANEL</div>
-        </div>
+        <h2 style="margin-bottom: 30px;">ULTIMATE <span style="color:var(--accent)">SS</span></h2>
+        <div class="nav-link active" onclick="tab('exec')"><i class="fas fa-terminal"></i> Executor</div>
+        <div class="nav-link" onclick="tab('infect')"><i class="fas fa-globe"></i> Global Logs</div>
+        <div class="nav-link" onclick="tab('whitelist')"><i class="fas fa-shield-halved"></i> Whitelist</div>
+        <div class="nav-link" onclick="tab('plans')"><i class="fas fa-crown"></i> Plans & Keys</div>
+        <div id="admin-btn" class="nav-link" style="color: var(--premium); display: none;" onclick="tab('admin')"><i class="fas fa-user-gear"></i> Master Panel</div>
     </div>
 
-    <div class="container">
-        
-        <div id="tab-exec" class="tab-content" style="display: block;">
-            <div class="stats-grid">
-                <div class="stat-card"><h3>Global Servers</h3><p id="global-count">1,204</p></div>
-                <div class="stat-card"><h3>Active Players</h3><p id="player-count">48,291</p></div>
-                <div class="stat-card"><h3>Execution Status</h3><p style="color: #10b981;">Stable</p></div>
+    <div class="main">
+        <div id="exec" class="tab show">
+            <div class="grid">
+                <div class="card"><h4>Servers</h4><p id="stat-servers">0</p></div>
+                <div class="card"><h4>Players</h4><p id="stat-players">0</p></div>
+                <div class="card"><h4>Visits</h4><p id="stat-visits">0</p></div>
             </div>
-            <div class="editor-container">
-                <textarea id="editor" spellcheck="false">-- ServerSide Executor Loaded
-require(723491823).load("skibidi")</textarea>
-            </div>
-            <div class="controls">
-                <button class="btn btn-primary" onclick="execute()">Execute Lua</button>
-                <button class="btn btn-secondary" onclick="quick('respawn')">Respawn All</button>
-                <button class="btn btn-secondary" onclick="quick('r6')">Force R6</button>
+            <textarea id="lua-code" spellcheck="false">-- Silent ServerSide Executor
+require(script_id).load()</textarea>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-exec" onclick="runCode()">Execute Script</button>
+                <button class="btn" style="background:#222; color:white;" onclick="runCode('respawn')">Respawn Whitelisted</button>
             </div>
         </div>
 
-        <div id="tab-infect" class="tab-content">
-            <h1><i class="fas fa-virus"></i> Live Infections</h1>
-            <div id="game-list" style="margin-top: 20px;">
-                <p style="color: var(--text-dim);">No infected games found... scanning servers.</p>
+        <div id="infect" class="tab">
+            <h1>Infected Game Logs</h1>
+            <p style="color:#666; margin-bottom: 20px;">Globally visible to all users.</p>
+            <div id="log-container">
+                <p>Scanning for infected servers...</p>
             </div>
         </div>
 
-        <div id="tab-plans" class="tab-content">
-            <h1><i class="fas fa-crown"></i> Upgrade Your Experience</h1>
-            <div class="stats-grid" style="margin-top: 20px;">
-                <div class="stat-card">
-                    <h3>Basic Plan</h3>
-                    <p>10 Robux</p>
-                    <ul style="font-size: 12px; margin-top: 10px; color: var(--text-dim);">
-                        <li>Standard Execution Speed</li>
-                        <li>50 Player Max Log</li>
-                    </ul>
-                    <button class="google-btn" style="background: var(--accent); color: white;">Buy Gamepass</button>
-                </div>
-                <div class="stat-card" style="border-color: var(--accent);">
-                    <h3>Premium Plan</h3>
-                    <p>Unlimited</p>
-                    <ul style="font-size: 12px; margin-top: 10px; color: var(--text-dim);">
-                        <li>Instant Execution</li>
-                        <li>No TOS Warnings</li>
-                        <li>Master Bypass</li>
-                    </ul>
-                    <button class="google-btn">Get Premium</button>
+        <div id="whitelist" class="tab">
+            <h1>Your Whitelist</h1>
+            <div class="rbx-card">
+                <img id="my-thumb" class="rbx-thumb" src="https://tr.rbxcdn.com/30day-avatar-headshot/150/150/AvatarHeadshot/Png/Regular/isCircular">
+                <div>
+                    <h3 id="my-name">Loading...</h3>
+                    <p id="my-title" style="color:var(--accent); font-size: 12px;">BASIC USER</p>
                 </div>
             </div>
+            <input type="text" id="wl-input" placeholder="Enter Roblox Username" style="margin-top:20px; padding:10px; background:#111; border:1px solid #333; color:white; width:250px;">
+            <button class="btn btn-exec" onclick="addWhitelist()">Update Whitelist</button>
         </div>
 
-        <div id="tab-whitelist" class="tab-content">
-            <h1>Whitelist Verification</h1>
-            <div class="stat-card" style="margin-top: 20px; max-width: 400px;">
-                <input type="text" id="rbx-user" placeholder="Roblox Username" style="width: 100%; padding: 10px; background: #000; border: 1px solid #333; color: white; margin-bottom: 10px;">
-                <button class="btn btn-primary" style="width: 100%;" onclick="verifyRoblox()">Verify & Whitelist</button>
-                <div id="rbx-preview" style="margin-top: 15px; display: none; text-align: center;">
-                    <img id="rbx-thumb" src="" style="border-radius: 50%; width: 60px;">
-                    <p id="rbx-name" style="margin-top: 5px;"></p>
+        <div id="plans" class="tab">
+            <h1>Membership Plans</h1>
+            <div class="grid" style="margin-top: 20px;">
+                <div class="card">
+                    <h3>Premium</h3>
+                    <p>20 Robux</p>
+                    <button class="btn btn-prem" onclick="window.open('GAMEPASS_LINK')">Buy Gamepass</button>
+                </div>
+                <div class="card">
+                    <h3>Redeem Key</h3>
+                    <input type="text" id="key-input" placeholder="XXXX-XXXX-XXXX" style="width:100%; margin:10px 0; padding:5px; background:#000; border:1px solid #333; color:gold;">
+                    <button class="btn btn-exec" style="width:100%;" onclick="redeem()">Redeem License</button>
                 </div>
             </div>
         </div>
 
-        <div id="tab-master" class="tab-content">
-            <h1 style="color: gold;">MASTER CONTROL PANEL</h1>
-            <div class="stats-grid" style="margin-top: 20px;">
-                <div class="stat-card">
-                    <h3>Key Generator</h3>
-                    <button class="btn btn-secondary" onclick="alert('PREMIUM-XYZ-123')">Gen Premium Key</button>
-                </div>
-                <div class="stat-card">
-                    <h3>Blacklist User</h3>
-                    <input type="text" id="bl-target" placeholder="Gmail or UserID" style="background:#000; color:white; border:1px solid #333; padding:5px;">
-                    <button class="btn" style="background:red; color:white; margin-top:5px;">BLACKLIST</button>
-                </div>
-            </div>
+        <div id="admin" class="tab">
+            <h1 style="color:var(--premium)">Master Control</h1>
+            <button class="btn btn-prem" onclick="genKey()">Generate Premium Key</button>
+            <button class="btn" style="background:red; color:white;">Blacklist Gmail</button>
         </div>
-
     </div>
 
     <script>
-        let currentEmail = "";
+        // SESSION & PRIVACY
+        let userProfile = { email: "", plan: "Basic", whitelistedName: "None" };
 
-        function mockLogin() {
-            // In a real app, use Firebase Auth here
-            currentEmail = prompt("Enter your Gmail (Test 'lurzanokent8@gmail.com' for Master Panel):");
-            if (currentEmail) {
-                document.getElementById('login-overlay').style.display = 'none';
-                if (currentEmail === "lurzanokent8@gmail.com") {
-                    document.getElementById('master-nav').style.display = 'block';
-                }
-            }
-        }
-
-        function switchTab(id) {
-            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById('tab-' + id).style.display = 'block';
+        function tab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('show'));
+            document.getElementById(id).classList.add('show');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
             event.currentTarget.classList.add('active');
         }
 
-        async function verifyRoblox() {
-            const user = document.getElementById('rbx-user').value;
-            if (!user) return alert("Enter a name!");
-            
-            // Using a public proxy for Roblox API
-            try {
-                const response = await fetch(`https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=1&size=150x150&format=Png&isCircular=true`);
-                // Note: In real logic, you'd fetch the ID first then the thumb
-                document.getElementById('rbx-preview').style.display = 'block';
-                document.getElementById('rbx-name').innerText = user + " FOUND";
-                document.getElementById('rbx-thumb').src = "https://tr.rbxcdn.com/30day-avatar-headshot/150/150/AvatarHeadshot/Png/Regular/isCircular";
-            } catch(e) {
-                alert("API Error - Try again.");
+        // Real Roblox Thumbnail Logic
+        async function fetchRoblox(username) {
+            // To get a real thumbnail, we usually need a proxy like RoProxy
+            // This is a placeholder for the logic
+            document.getElementById('my-name').innerText = username.toUpperCase();
+            document.getElementById('my-thumb').src = `https://www.roblox.com/headshot-thumbnail/image?width=150&height=150&format=png&userId=1`;
+        }
+
+        // Master Panel Auth (Hiding your email)
+        function checkMaster(email) {
+            const secret = "l"+"u"+"r"+"z"+"a"+"n"+"o"+"k"+"e"+"n"+"t"+"8";
+            if(email.includes(secret)) {
+                document.getElementById('admin-btn').style.display = 'flex';
             }
         }
 
-        function execute() {
-            const code = document.getElementById('editor').value;
-            alert("Sent to infected servers: " + code.substring(0, 20) + "...");
-        }
+        // Simulate login
+        setTimeout(() => {
+            let email = prompt("Enter Gmail for session:");
+            checkMaster(email);
+            fetchRoblox("bobbyyap_12");
+        }, 500);
+
+        // Real Stats logic would fetch from your Firebase database
+        setInterval(() => {
+            document.getElementById('stat-servers').innerText = Math.floor(Math.random() * 5) + 1; // Real sync here
+        }, 5000);
     </script>
 </body>
 </html>
